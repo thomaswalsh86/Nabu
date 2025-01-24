@@ -1,0 +1,19 @@
+# The goal of this project is to create a "find" feature used for searching handwriting
+
+My inital start is to first find a library that can identify handwriting but first I need to think of logisitics 1 how should the users interact key bind ctr shit f? first on pdfs or images or something after.
+
+I shall eat food and ponder how it will work but I am hopeful
+
+update I just watched tiktoks unproductive
+
+# Overview
+
+Thoth (change name) when activated (extension?) on a pdf or wordoc or other similar files where there is handwriting there should be a funnction where all the hand written words are changed to computerized version. also a find word function should also be included
+
+Step 0 Pick new name
+
+Step 1 handwriting identifier
+
+I have made some updates both step 0 and 1 are complete the py script is compleete I am making a web interface instead of extension 
+
+my next goal is to get the import file buttn working and some how use js to get that value to equal a value in a py sscript which I hope will transpond over into a sub script inside the html code maybe. BUt that is for day 2.
