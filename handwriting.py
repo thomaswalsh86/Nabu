@@ -1,33 +1,59 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from pdf2image import convert_from_path
-import cv2
 import pytesseract
-import re
+import cv2
+import numpy as np
+import os
 
-pdf_path = 'place_holder'
-regEx = re.search(r'.*\.pdf$', pdf_path, re.IGNORECASE)
-if regEx is None:
-    image = cv2.imread(pdf_path, cv2.IMREAD_GRAYSCALE)
-    if image is not None:
-        processed_image = cv2.GaussianBlur(image, (5, 5), 0)
-        _, binary_image = cv2.threshold(processed_image, 127, 255, cv2.THRESH_BINARY)
-        text = pytesseract.image_to_string(binary_image, lang='eng', config='--psm 6')
+app = Flask(__name__)
+CORS(app)  # Allow frontend to communicate with backend
 
-        print("--- Text Extracted from Image ---")
-        print(text)
-else:   
-    images = convert_from_path(pdf_path, dpi=300) 
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Create uploads folder if it doesn't exist
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+def extract_text_from_image(image_path):
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)  # Convert to grayscale
+    processed_image = cv2.GaussianBlur(image, (5, 5), 0)  # Reduce noise
+    _, binary_image = cv2.threshold(processed_image, 127, 255, cv2.THRESH_BINARY)  # Binarize
+    
+    text = pytesseract.image_to_string(binary_image, lang='eng', config='--psm 6')  # OCR
+    return text.strip()
+
+# Function to process a PDF
+def extract_text_from_pdf(pdf_path):
+    images = convert_from_path(pdf_path, dpi=300)  # Convert PDF to images
+    extracted_text = ""
 
     for i, page in enumerate(images):
-        image_path=f'page_{i+1}.jpg'
+        image_path = os.path.join(UPLOAD_FOLDER, f"page_{i+1}.jpg")
         page.save(image_path, 'JPEG')
 
-        image = cv2.imerad(image_path, cv2.IMREAD_GRAYSCALE)
-        if image is not None: 
-            processed_image = cv2.GaussianBlur(binary_image, (5, 5), 0)#reduces noise
-            _, binary_image = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
-            text = pytesseract.image_to_string(binary_image, lang='eng', config='--psm 6')
+        text = extract_text_from_image(image_path)
+        extracted_text += f"\n--- Page {i+1} ---\n{text}"
 
-            print(f"--- Text from Page {i+1} ---")
-            print(text)
-        else:
-            print(f"Error: Unable to read image for page {i+1}.")
+    return extracted_text.strip()
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+    file.save(file_path)  # Save the uploaded file
+
+    # Determine if file is PDF or image
+    if file.filename.lower().endswith(".pdf"):
+        extracted_text = extract_text_from_pdf(file_path)
+    else:
+        extracted_text = extract_text_from_image(file_path)
+
+    return jsonify({"extracted_text": extracted_text})
+
+if __name__ == "__main__":
+    app.run(debug=True)

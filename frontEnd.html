@@ -23,13 +23,37 @@
             NABU is a project I devised as a way to stretch my coding muscles. The aim of the project is to take a pdf of handwriting and based on user preffrence it will copy all the words in the file and you copy it, or it will be printed to the screen and you may view to your hearts content.
             </p>
             <p>
-            I will take this oppurtunity to voice and express my woes with miniamilist Style. Seeing as ive never much enjoyed doingjs I shall attempt to do so. But Once the primary function is complete I shall prove well done maximilism in any form is art of the highest calibre the true essence of expression.
+            I will take this oppurtunity to voice and express my woes with miniamilist Style. Seeing as ive never much enjoyed doingjs I shall attempt to do so. But Once the primary function is complete I shall prove well done maximilism in any form is art of the highest calibre and the true essence of expression.
             </p>
         </div>
         <div class="button-container">
-            <button class="btn-shine" >
-                <span>Import File</span>
+            <input type="file" id="fileInput">
+            <button class="btn-shine" onclick="uploadFile()" >
+                <span>Upload File</span>
             </button>
+            <pre id="output"></pre>
         </div>
+        <script>
+            async function uploadFile() {
+                let fileInput=document.getElementById("fileInput")
+                let file = fileInput.files[0];
+                if(!file)
+                {
+                    document.getElementById("output").innerText="NO file Selected!";
+                    return;
+                }
+                let formData= new FormData();
+                formData.append("file",file);
+
+                let response = await fetch("/upload",{
+                    method: "POST",
+                    body : formData
+                });
+
+                let result = await response.json();
+                document.getElementById("output").innerText = result.extracted_text;
+                
+            }
+        </script>
     </body>
 </html>
