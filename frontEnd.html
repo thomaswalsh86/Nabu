@@ -27,32 +27,35 @@
             </p>
         </div>
         <div class="button-container">
-            <input type="file" id="fileInput">
-            <button class="btn-shine" onclick="uploadFile()" >
+            <label for="fileInput" class="file-label">Choose File</label>
+            <input type="file" id="fileInput" onchange="displayFileName()">
+            <span id="file-name">No file selected</span>
+            
+            <button onclick="uploadFile()" class="btn-shine">
                 <span>Upload File</span>
             </button>
             <pre id="output"></pre>
         </div>
         <script>
             async function uploadFile() {
-                let fileInput=document.getElementById("fileInput")
+                let fileInput = document.getElementById("fileInput");
                 let file = fileInput.files[0];
-                if(!file)
-                {
-                    document.getElementById("output").innerText="NO file Selected!";
+    
+                if (!file) {
+                    document.getElementById("output").innerText = "No file selected!";
                     return;
                 }
-                let formData= new FormData();
-                formData.append("file",file);
-
-                let response = await fetch("/upload",{
+    
+                let formData = new FormData();
+                formData.append("file", file);
+    
+                let response = await fetch("http://127.0.0.1:5000/upload", {
                     method: "POST",
-                    body : formData
+                    body: formData
                 });
-
+    
                 let result = await response.json();
                 document.getElementById("output").innerText = result.extracted_text;
-                
             }
         </script>
     </body>

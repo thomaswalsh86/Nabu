@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 import os
 
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 app = Flask(__name__)
 CORS(app)  # Allow frontend to communicate with backend
 
