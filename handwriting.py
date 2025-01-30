@@ -1,41 +1,49 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pdf2image import convert_from_path
-import pytesseract
 import cv2
-import numpy as np
 import os
-
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+import easyocr
 
 app = Flask(__name__)
-CORS(app)  # Allow frontend to communicate with backend
+CORS(app)
+
+# Initialize EasyOCR with correct parameters
+try:
+    reader = easyocr.Reader(
+        ['en'], 
+        recog_network='english_g2',  # Verified working model
+        gpu=False,
+        model_storage_directory='model_storage',
+        download_enabled=True
+    )
+    print("EasyOCR initialized successfully")
+except Exception as e:
+    print(f"Error initializing EasyOCR: {str(e)}")
+    raise
 
 UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Create uploads folder if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-def extract_text_from_image(image_path):
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)  # Convert to grayscale
-    processed_image = cv2.GaussianBlur(image, (5, 5), 0)  # Reduce noise
-    _, binary_image = cv2.threshold(processed_image, 127, 255, cv2.THRESH_BINARY)  # Binarize
-    
-    text = pytesseract.image_to_string(binary_image, lang='eng', config='--psm 6')  # OCR
-    return text.strip()
+def preprocess_image(image_path):
+    """Simplified preprocessing for reliability"""
+    img = cv2.imread(image_path)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    return cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
-# Function to process a PDF
-def extract_text_from_pdf(pdf_path):
-    images = convert_from_path(pdf_path, dpi=300)  # Convert PDF to images
-    extracted_text = ""
-
-    for i, page in enumerate(images):
-        image_path = os.path.join(UPLOAD_FOLDER, f"page_{i+1}.jpg")
-        page.save(image_path, 'JPEG')
-
-        text = extract_text_from_image(image_path)
-        extracted_text += f"\n--- Page {i+1} ---\n{text}"
-
-    return extracted_text.strip()
+def extract_text(image_path):
+    try:
+        processed_img = preprocess_image(image_path)
+        results = reader.readtext(
+            processed_img,
+            detail=0,
+            paragraph=True,
+            batch_size=5
+        )
+        return "\n".join(results)
+    except Exception as e:
+        return f"OCR Error: {str(e)}"
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
@@ -47,13 +55,19 @@ def upload_file():
         return jsonify({"error": "No selected file"}), 400
 
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-    file.save(file_path)  # Save the uploaded file
-
-    # Determine if file is PDF or image
-    if file.filename.lower().endswith(".pdf"):
-        extracted_text = extract_text_from_pdf(file_path)
+    file.save(file_path)
+    
+    # Handle PDF files
+    if file.filename.lower().endswith('.pdf'):
+        images = convert_from_path(file_path)
+        full_text = ""
+        for i, image in enumerate(images):
+            image_path = os.path.join(app.config["UPLOAD_FOLDER"], f"page_{i+1}.jpg")
+            image.save(image_path, 'JPEG')
+            full_text += extract_text(image_path) + "\n"
+        extracted_text = full_text
     else:
-        extracted_text = extract_text_from_image(file_path)
+        extracted_text = extract_text(file_path)
 
     return jsonify({"extracted_text": extracted_text})
 
